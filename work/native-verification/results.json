@@ -1,0 +1,50 @@
+{
+  "Passed": [
+    "global shortcuts reject duplicate assignments and actual OS registration conflicts",
+    "real low-level hooks: mouse paths, three buttons, drag, scroll, Shift\u002BA and global shortcut exclusion",
+    "external lab received the recorded text, two clicks and drag",
+    "record \u2192 stop \u2192 edit \u2192 atomic save \u2192 reopen \u2192 SendInput replay reproduced text/counter/scroll/drag",
+    "tagged playback input is excluded by actual hooks",
+    "global emergency stop interrupts a 60-second delay and releases real Ctrl and left button",
+    "global emergency stop terminates an active infinite repeat",
+    "global pause, resume and stop work while the external lab owns focus",
+    "Unicode SendInput and window-relative coordinates/restoration at 1.5\u00D7 DPI"
+  ],
+  "Macro": "C:\\Users\\steph\\documents\\Projects\\freemacrorecorder\\work\\native-verification\\recorded-edited-reopened.json",
+  "RecordedSteps": 26,
+  "Snapshot": {
+    "Text": "\u03BB \u65E5\u672C\u8A9E \uD83E\uDE9F",
+    "Count": 0,
+    "DragX": 30,
+    "Status": "Left \u00B7 clicks 1",
+    "Scroll": 0,
+    "Wheels": 2,
+    "WheelTarget": "Grid/Grid",
+    "ScrollMaximum": 884.5000000000006,
+    "Entry": [
+      1280,
+      543
+    ],
+    "Counter": [
+      838,
+      693
+    ],
+    "Reset": [
+      1030,
+      693
+    ],
+    "Drag": [
+      827,
+      1094
+    ],
+    "Drop": [
+      1528,
+      1098
+    ],
+    "ScrollPoint": [
+      1280,
+      846
+    ],
+    "Dpi": 1.5
+  }
+}

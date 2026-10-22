@@ -1,0 +1,9 @@
+.dotnet/
+**/bin/
+**/obj/
+artifacts/
+work/dotnet-install.ps1
+work/*.zip
+work/*.log
+work/dotnet-home/
+*.user

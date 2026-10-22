@@ -1,0 +1,8 @@
+{
+  "formatVersion": 1,
+  "name": "Emergency stop check",
+  "playback": { "speed": 1, "repetitions": 1, "untilStopped": true, "skipMousePaths": false, "restoreWindows": false },
+  "actions": [
+    { "id": "ae99acf0-69a3-4f26-979d-eac5fa170003", "kind": "Delay", "durationMs": 60000, "comment": "Press Esc in another app. Playback must stop immediately." }
+  ]
+}
