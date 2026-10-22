@@ -10,5 +10,5 @@ if ($LASTEXITCODE -ne 0) { throw 'Lab publish failed. Close a previous native-te
 & $dotnet build tests/MacroStudio.NativeTests -c Release
 if ($LASTEXITCODE -ne 0) { throw 'Native test build failed.' }
 Write-Host 'Activate the freshly launched Interaction Lab. The test sends input only while that lab owns foreground focus.'
-& $dotnet tests/MacroStudio.NativeTests/bin/Release/net10.0-windows/MacroStudio.NativeTests.dll $dotnet "$root/artifacts/NativeLab/MacroStudio.TestLab.exe" ([IO.Path]::GetFullPath($EvidenceDirectory))
+& $dotnet tests/MacroStudio.NativeTests/bin/Release/net10.0-windows10.0.19041.0/MacroStudio.NativeTests.dll $dotnet "$root/artifacts/NativeLab/MacroStudio.TestLab.exe" ([IO.Path]::GetFullPath($EvidenceDirectory))
 if ($LASTEXITCODE -ne 0) { throw 'Native integration failed; see the evidence directory.' }

@@ -1,0 +1,14 @@
+{
+  "formatVersion": 2,
+  "name": "Variables, bounded repeat and reusable call",
+  "actions": [
+    { "kind": "SetVariable", "group": "Count", "data": { "variable": "counter", "type": "Number", "value": "0" } },
+    { "kind": "RepeatStart", "group": "Count", "flow": { "count": 3 } },
+    { "kind": "Calculate", "group": "Count", "data": { "variable": "counter", "value": "${counter}", "operation": "+", "operand": "1" } },
+    { "kind": "RepeatEnd", "group": "Count" },
+    { "kind": "Branch", "group": "Route", "data": { "value": "${counter}", "operation": "==", "operand": "3" }, "flow": { "destination": "success", "otherwise": "end" } },
+    { "kind": "Label", "group": "Route", "flow": { "label": "success" } },
+    { "kind": "CallMacro", "group": "Route", "flow": { "macroFile": "reusable/status.json" } },
+    { "kind": "Label", "group": "Route", "flow": { "label": "end" } }
+  ]
+}

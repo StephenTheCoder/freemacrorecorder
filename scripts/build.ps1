@@ -16,9 +16,10 @@ Run-Dotnet build src/MacroStudio/MacroStudio.csproj -c Release
 Run-Dotnet build src/MacroStudio.TestLab/MacroStudio.TestLab.csproj -c Release
 Run-Dotnet run --project tests/MacroStudio.Tests -c Release
 Run-Dotnet run --project tests/MacroStudio.EditorTests -c Release
-$labDest = "$root/src/MacroStudio/bin/Release/net10.0-windows/Lab"
+Run-Dotnet run --project tests/MacroStudio.AdvancedTests -c Release
+$labDest = "$root/src/MacroStudio/bin/Release/net10.0-windows10.0.19041.0/Lab"
 New-Item -ItemType Directory -Force $labDest | Out-Null
-Copy-Item "$root/src/MacroStudio.TestLab/bin/Release/net10.0-windows/*" $labDest -Recurse -Force
+Copy-Item "$root/src/MacroStudio.TestLab/bin/Release/net10.0-windows10.0.19041.0/*" $labDest -Recurse -Force
 if ($Package) {
     $publishDirectory = [IO.Path]::GetFullPath($OutputDirectory)
     Run-Dotnet publish src/MacroStudio/MacroStudio.csproj -c Release -r win-x64 --self-contained true -o $publishDirectory

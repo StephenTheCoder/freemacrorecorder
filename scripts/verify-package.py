@@ -25,7 +25,7 @@ def main() -> None:
         "MacroStudio.exe", "MacroStudio.dll", "MacroStudio.Core.dll", "MacroStudio.Windows.dll",
         "coreclr.dll", "hostfxr.dll", "PresentationFramework.dll", "MacroStudio.runtimeconfig.json",
         "Lab/MacroStudio.TestLab.exe", "Lab/PresentationFramework.dll", "Lab/coreclr.dll",
-        "README.md", "docs/FORMAT.md", "docs/VERIFICATION.md",
+        "README.md", "docs/FORMAT.md", "docs/VERIFICATION.md", "docs/ADVANCED.md", "docs/SCHEDULER.md", "OpenCvSharp.dll", "OpenCvSharpExtern.dll",
         "samples/unicode-and-delay.json", "samples/emergency-stop.json", "samples/recorded-lab.json",
     ]
     for name in required:
@@ -51,11 +51,11 @@ def main() -> None:
                 raise RuntimeError(f"ZIP content differs from release: {name}")
     source_info = None
     if args.source:
-        source_archive = package.with_name("MacroStudio-1.0-source.zip")
+        source_archive = package.with_name(package.name + "-source.zip")
         source_files = [root / name for name in [".gitignore", "Directory.Build.props", "NuGet.Config", "README.md"]]
         for folder in ["src", "tests", "scripts", "docs", "samples"]:
             source_files += [p for p in (root / folder).rglob("*") if p.is_file() and not {"bin", "obj", "__pycache__"}.intersection(p.relative_to(root).parts)]
-        source_files += [root / "work/release-checks.md", root / "work/native-verification/results.json"]
+        source_files += [root / name for name in ["work/advanced-native-regression/results.json", "work/advanced-verification/visual-result.json", "work/advanced-verification/gui-smoke.json"] if (root / name).is_file()]
         with zipfile.ZipFile(source_archive, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as output:
             for path in sorted(source_files):
                 output.write(path, "MacroStudio/" + path.relative_to(root).as_posix())

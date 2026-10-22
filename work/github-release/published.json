@@ -1,0 +1,26 @@
+{
+  "url": "https://github.com/StephenTheCoder/freemacrorecorder/releases/tag/v1.0.0",
+  "tag": "v1.0.0",
+  "commit": "990ded25ffc480df3b3ede52d070655716db718d",
+  "draft": false,
+  "assets": [
+    {
+      "name": "MacroStudio-1.0-source.zip",
+      "size": 63210,
+      "digest": "sha256:910281f53754c4ac3a6b3e7e147cced832d26d5a7203671480239bf4c5f52631",
+      "browser_download_url": "https://github.com/StephenTheCoder/freemacrorecorder/releases/download/v1.0.0/MacroStudio-1.0-source.zip"
+    },
+    {
+      "name": "MacroStudio-1.0-win-x64.zip",
+      "size": 130480125,
+      "digest": "sha256:973341fed3e7b6e4266ee054f3aa0f8caa0eaa1d9420d06b8931498b2aa5a20d",
+      "browser_download_url": "https://github.com/StephenTheCoder/freemacrorecorder/releases/download/v1.0.0/MacroStudio-1.0-win-x64.zip"
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "size": 189,
+      "digest": "sha256:be4b8e50409448d79d0855883a9c7fd65fbbe304cc69355e845769156b629db7",
+      "browser_download_url": "https://github.com/StephenTheCoder/freemacrorecorder/releases/download/v1.0.0/SHA256SUMS.txt"
+    }
+  ]
+}

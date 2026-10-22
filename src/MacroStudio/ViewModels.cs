@@ -16,8 +16,9 @@ public sealed class RelayCommand(Action execute,Func<bool>? can=null) : ICommand
     public bool CanExecute(object? p)=>can?.Invoke()??true; public void Execute(object? p)=>execute();
     public event EventHandler? CanExecuteChanged {add=>CommandManager.RequerySuggested+=value;remove=>CommandManager.RequerySuggested-=value;}
 }
-public sealed class ActionRow(MacroAction action,int number) : Bindable {
+public sealed class ActionRow(MacroAction action,int number,string section="Actions") : Bindable {
     public MacroAction Action {get;}=action; public int Number {get;}=number;
+    public string Section=>section;public string Marker=>Action.Breakpoint?"●":"";
     public bool Enabled=>Action.Enabled;public string Kind=>Action.Kind.ToString();public string Description=>Action.Description;
     public string Timing=>$"+{Action.DelayMs:0} / {Action.DurationMs:0} ms";public string Target=>Action.TargetLabel;public string Comment=>Action.Comment;
     bool running;public bool Running {get=>running;set=>Set(ref running,value);}
@@ -34,13 +35,14 @@ public sealed class StudioViewModel : Bindable, IDisposable {
     public Stack<string> UndoStack {get;}=new(); public Stack<string> RedoStack {get;}=new();
     string baseline="",status="Ready to record",search="",filePath="";
     int repetition; bool dark;
+    CancellationTokenSource? pendingPlayback;
     public string Status {get=>status;set=>Set(ref status,value);}
     public string Search {get=>search;set {Set(ref search,value);Refresh();}}
     public string FilePath {get=>filePath;private set {filePath=value;Notify();Notify(nameof(Title));}}
     public bool Dirty=>MacroStore.Serialize(Document)!=baseline;
     public string Title=>$"{Document.Name}{(Dirty?" •":"")} — MacroStudio";
-    public bool Idle=>Session.State==SessionState.Idle;
-    public string State=>Session.State.ToString();
+    public bool Idle=>Session.State==SessionState.Idle&&pendingPlayback is null;
+    public string State=>Session.State==SessionState.Idle&&pendingPlayback!=null?"Validating":Session.State.ToString();
     public string Summary=>$"{Document.Actions.Count} steps · repetition {repetition} · {State}";
     public bool Dark {get=>dark;set=>Set(ref dark,value);}
     public CoordinateMode RecordCoordinates {get;set;}
@@ -49,17 +51,18 @@ public sealed class StudioViewModel : Bindable, IDisposable {
     public bool UntilStopped {get=>Document.Playback.UntilStopped;set {if(value==UntilStopped)return;Before();Document.Playback.UntilStopped=value;Changed();}}
     public bool SkipPaths {get=>Document.Playback.SkipMousePaths;set {if(value==SkipPaths)return;Before();Document.Playback.SkipMousePaths=value;Changed();}}
     public bool RestoreWindows {get=>Document.Playback.RestoreWindows;set {if(value==RestoreWindows)return;Before();Document.Playback.RestoreWindows=value;Changed();}}
+    public MousePathShape PathShape {get=>Document.Playback.PathShape;set{if(value==PathShape)return;Before();Document.Playback.PathShape=value;Changed();}}
     public StudioViewModel() {
-        Hooks=new();Recorder=new(Hooks,Session);Engine=new(new WindowsInput(),Session);baseline=MacroStore.Serialize(Document);
+        Hooks=new();Recorder=new(Hooks,Session);var sink=new WindowsInput();Engine=new(sink,Session,new WindowsAutomationHost(sink));baseline=MacroStore.Serialize(Document);
         Session.Changed+=_=>Application.Current.Dispatcher.BeginInvoke(()=>{Notify(nameof(Idle));Notify(nameof(State));Notify(nameof(Summary));CommandManager.InvalidateRequerySuggested();});
         Recorder.CountChanged+=count=>Application.Current.Dispatcher.BeginInvoke(()=>Status=$"Recording explicitly · {count} input samples captured");
-        Engine.Progress+=(id,rep)=>Application.Current.Dispatcher.BeginInvoke(()=>{foreach(var row in Rows)row.Running=row.Action.Id==id;repetition=rep;Status=$"Playing step {Document.Actions.FindIndex(a=>a.Id==id)+1} · repetition {rep}";Notify(nameof(Summary));});
+        Engine.Progress+=(id,rep)=>Application.Current.Dispatcher.BeginInvoke(()=>{foreach(var row in Rows)row.Running=row.Action.Id==id;repetition=rep;Status=$"Playing {(Document.Actions.Any(a=>a.Id==id)?"step "+(Document.Actions.FindIndex(a=>a.Id==id)+1):"nested/library macro")} · repetition {rep}";Notify(nameof(Summary));});
     }
     public void Before() {UndoStack.Push(MacroStore.Serialize(Document));if(UndoStack.Count>100){var last=UndoStack.Reverse().Skip(1).ToArray();UndoStack.Clear();foreach(var s in last)UndoStack.Push(s);}RedoStack.Clear();}
     public void Changed(){Notify(nameof(Title));Notify(nameof(Dirty));Notify(nameof(Summary));CommandManager.InvalidateRequerySuggested();}
-    public void Refresh() {var selection=Selected.Select(r=>r.Action.Id).ToHashSet();Rows.Clear();for(int i=0;i<Document.Actions.Count;i++){var a=Document.Actions[i];if(string.IsNullOrWhiteSpace(search)||$"{a.Description} {a.TargetLabel} {a.Comment} {a.Kind}".Contains(search,StringComparison.OrdinalIgnoreCase))Rows.Add(new(a,i+1));}Selected=Rows.Where(r=>selection.Contains(r.Action.Id)).ToList();RestoreSelection?.Invoke(Selected.Select(r=>r.Action.Id).ToArray());Changed();}
+    public void Refresh() {var selection=Selected.Select(r=>r.Action.Id).ToHashSet();Rows.Clear();string section="Actions",previousGroup="\0";for(int i=0;i<Document.Actions.Count;i++){var a=Document.Actions[i];if(a.Group!=previousGroup){section=$"{(string.IsNullOrWhiteSpace(a.Group)?"Actions":a.Group)} / step {i+1}";previousGroup=a.Group;}if(string.IsNullOrWhiteSpace(search)||$"{a.Description} {a.TargetLabel} {a.Comment} {a.Kind}".Contains(search,StringComparison.OrdinalIgnoreCase))Rows.Add(new(a,i+1,section));}Selected=Rows.Where(r=>selection.Contains(r.Action.Id)).ToList();RestoreSelection?.Invoke(Selected.Select(r=>r.Action.Id).ToArray());Changed();}
     public void Replace(MacroDocument doc,string path="",bool saved=true){Document=doc;FilePath=path;UndoStack.Clear();RedoStack.Clear();if(saved)baseline=MacroStore.Serialize(doc);Refresh();OptionsChanged();}
-    void OptionsChanged(){Notify(nameof(Speed));Notify(nameof(Repetitions));Notify(nameof(UntilStopped));Notify(nameof(SkipPaths));Notify(nameof(RestoreWindows));}
+    void OptionsChanged(){Notify(nameof(Speed));Notify(nameof(Repetitions));Notify(nameof(UntilStopped));Notify(nameof(SkipPaths));Notify(nameof(RestoreWindows));Notify(nameof(PathShape));}
     public void MarkSaved(string path){FilePath=path;baseline=MacroStore.Serialize(Document);Changed();}
     public void Undo(){if(!Idle||!UndoStack.TryPop(out var s))return;RedoStack.Push(MacroStore.Serialize(Document));Document=MacroStore.Parse(s);Refresh();OptionsChanged();}
     public void Redo(){if(!Idle||!RedoStack.TryPop(out var s))return;UndoStack.Push(MacroStore.Serialize(Document));Document=MacroStore.Parse(s);Refresh();OptionsChanged();}
@@ -72,13 +75,18 @@ public sealed class StudioViewModel : Bindable, IDisposable {
     public string Copy(){return MacroStore.Serialize(new(){Actions=Document.Actions.Where(a=>Selected.Any(r=>r.Action.Id==a.Id)).Select(MacroStore.Clone).ToList()});}
     public void Paste(string json){if(!Idle)return;var d=MacroStore.Parse(json);Before();int index=Selected.Count>0?Document.Actions.IndexOf(Selected.Last().Action)+1:Document.Actions.Count;foreach(var a in d.Actions)a.Id=Guid.NewGuid();Document.Actions.InsertRange(index,d.Actions);Refresh();}
     public async Task RecordAsync(){if(!Idle)return;await Recorder.StartAsync(RecordCoordinates);Status="Recording explicitly · use the global Stop shortcut when finished";}
-    public async Task StopAsync(){if(Session.State==SessionState.Recording){var actions=await Recorder.StopAsync();Before();Document.Actions.AddRange(actions);Refresh();Status=$"Recorded {actions.Count} steps";}else Engine.Stop();}
+    public async Task StopAsync(){if(Session.State==SessionState.Recording){var actions=await Recorder.StopAsync();Before();Document.Actions.AddRange(actions);Refresh();Status=$"Recorded {actions.Count} steps. {Recorder.VisualWarning}";}else {pendingPlayback?.Cancel();Engine.Stop();}}
     public async Task PlayAsync(string mode="all") {
         if(!Idle)return;
         var (list,options)=PlaybackSelection.Create(Document,Selected.Select(s=>s.Action.Id),mode);
+        Engine.BaseDirectory=string.IsNullOrEmpty(FilePath)?Environment.CurrentDirectory:System.IO.Path.GetDirectoryName(FilePath)!;
+        Engine.RootFile=string.IsNullOrEmpty(FilePath)?null:FilePath;
+        using var pending=new CancellationTokenSource();pendingPlayback=pending;PlaybackBusyChanged();
         Status="Playback starts in 1 second · focus the target window";
-        try {await Task.Run(()=>Engine.PlayAsync(list,options,startDelayMs:1000));Status="Playback complete";}catch(OperationCanceledException){Status="Playback stopped · held input released";}
-        finally {foreach(var r in Rows)r.Running=false;}
+        try {await Task.Run(()=>Engine.PlayAsync(list,options,pending.Token,startDelayMs:1000));Status="Playback complete";}catch(OperationCanceledException){Status="Playback stopped · held input released";}
+        finally {pendingPlayback=null;PlaybackBusyChanged();foreach(var r in Rows)r.Running=false;}
     }
-    public void Dispose(){Engine.Stop();Hooks.Dispose();Recorder.Dispose();}
+    void PlaybackBusyChanged(){Notify(nameof(Idle));Notify(nameof(State));Notify(nameof(Summary));CommandManager.InvalidateRequerySuggested();}
+    public async Task PlayFileAsync(string path){if(!Idle)return;using var pending=new CancellationTokenSource();pendingPlayback=pending;PlaybackBusyChanged();try{var doc=await MacroStore.LoadAsync(path);Engine.BaseDirectory=System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path))!;Engine.RootFile=path;Status="Running library macro: "+doc.Name;await Task.Run(()=>Engine.PlayAsync(doc.Actions,doc.Playback,pending.Token,startDelayMs:1000));Status="Library playback complete";}catch(OperationCanceledException){Status="Library playback stopped";}finally{pendingPlayback=null;PlaybackBusyChanged();}}
+    public void Dispose(){pendingPlayback?.Cancel();Engine.Stop();Hooks.Dispose();Recorder.Dispose();}
 }

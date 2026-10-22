@@ -1,0 +1,7 @@
+{
+  "formatVersion": 2,
+  "name": "Reusable status assignment",
+  "actions": [
+    { "kind": "SetVariable", "data": { "variable": "status", "type": "Text", "value": "Counted ${counter} items" } }
+  ]
+}

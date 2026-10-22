@@ -5,10 +5,11 @@ using System.Windows.Interop;
 
 internal static class Program
 {
-    [STAThread] static int Main()
+    [STAThread] static int Main(string[] args)
     {
         var application=new MacroStudio.App();application.InitializeComponent();
         using var vm=new StudioViewModel();int checks=0;
+        if(args.Contains("--render")){RenderUi(vm);return 0;}
         void Assert(bool ok,string message){if(!ok)throw new Exception(message);}
         void Check(string name,Action run){run();checks++;Console.WriteLine("PASS "+name);}
         void Select(params int[] indices)=>vm.Selected=indices.Select(i=>vm.Rows[i]).ToList();
@@ -22,5 +23,20 @@ internal static class Program
             Check("playback options validate and participate in undo",()=>{vm.Speed=2;vm.UntilStopped=true;vm.SkipPaths=true;vm.RestoreWindows=true;vm.Repetitions=3;vm.Undo();Assert(vm.Repetitions==1,"Options undo failed");vm.Redo();Assert(vm.Repetitions==3&&vm.Speed==2&&vm.UntilStopped&&vm.SkipPaths&&vm.RestoreWindows,"Options redo failed");try{vm.Speed=0;throw new Exception("Invalid speed accepted");}catch(ArgumentException){};});
             Console.WriteLine($"{checks}/{checks} editor checks passed");return 0;
         }catch(Exception ex){Console.Error.WriteLine(ex);return 1;}
+    }
+    static void RenderUi(StudioViewModel vm){
+        var directory=System.IO.Path.GetFullPath("work/advanced-ui");System.IO.Directory.CreateDirectory(directory);
+        vm.Replace(new(){Name="Invoice processing",Actions=[new(){Kind=ActionKind.OcrText,Group="Read invoice",Data=new(){Variable="invoiceText"}},new(){Kind=ActionKind.SetVariable,Group="Read invoice",Data=new(){Variable="total",Type=VariableType.Number,Value="42"}},new(){Kind=ActionKind.Branch,Breakpoint=true,Group="Route result",Data=new(){Value="${total}",Operation=">",Operand="0"},Flow=new(){Destination="approve"}},new(){Kind=ActionKind.Label,Group="Route result",Flow=new(){Label="approve"}},new(){Kind=ActionKind.ImageClick,Group="Route result",Detection=new(){Image="approve.png"}}]});
+        System.Windows.Data.CollectionViewSource.GetDefaultView(vm.Rows).GroupDescriptions.Add(new System.Windows.Data.PropertyGroupDescription("Section"));
+        void Save(System.Windows.Window window,string name,int width,int height){var root=(System.Windows.FrameworkElement)window.Content;root.DataContext=vm;if(root is System.Windows.Controls.Panel panel)panel.Background=(System.Windows.Media.Brush)System.Windows.Application.Current.Resources["Bg"];root.Measure(new(width,height));root.Arrange(new(0,0,width,height));root.UpdateLayout();var target=new System.Windows.Media.Imaging.RenderTargetBitmap(width,height,96,96,System.Windows.Media.PixelFormats.Pbgra32);target.Render(root);var encoder=new System.Windows.Media.Imaging.PngBitmapEncoder();encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(target));using var file=System.IO.File.Create(System.IO.Path.Combine(directory,name+".png"));encoder.Save(file);window.Content=null;window.Close();}
+        Save(new MainWindow{DataContext=vm},"main",1320,800);
+        Save(new MainWindow{DataContext=vm},"main-compact",1000,700);
+        Save(new ActionEditor(new(){Kind=ActionKind.ImageClick}),"action-editor",600,730);
+        Save(new DetectionEditor(new(){Kind=ActionKind.ImageClick},Environment.CurrentDirectory),"visual-settings",660,760);
+        Save(new DataEditor(new(){Kind=ActionKind.OcrText}),"data-settings",600,730);
+        Save(new FlowEditor(new(){Kind=ActionKind.Branch},["approve","reject"]),"flow-settings",570,620);
+        Save(new DebuggerWindow(vm),"debugger",780,530);
+        Save(new AiConfigurationWindow(),"ai-settings",620,590);
+        Console.WriteLine("Rendered real WPF view trees to "+directory);
     }
 }

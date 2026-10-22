@@ -9,22 +9,32 @@ public sealed class RecordingService : IDisposable
     readonly List<CapturedInput> raw=[];
     TaskCompletionSource<List<MacroAction>>? completion;
     CoordinateMode mode;
+    VisualRecording? visual;
+    double lastEdge;
+    public bool VisualEnabled {get;set;}
+    public string VisualWarning {get;private set;}="";
     public event Action<int>? CountChanged;
     public RecordingService(HookService hooks,SessionMachine session) { this.hooks=hooks;this.session=session;worker=Task.Run(Consume); }
     public async Task StartAsync(CoordinateMode coordinateMode) {
         if(!session.Transition(SessionState.Recording)) throw new InvalidOperationException("Stop the current session first.");
-        mode=coordinateMode;completion=new(TaskCreationOptions.RunContinuationsAsynchronously);
+        mode=coordinateMode;completion=new(TaskCreationOptions.RunContinuationsAsynchronously);VisualWarning="";lastEdge=0;
+        if(VisualEnabled){visual=new();await Task.Delay(120);}
         try { await hooks.BeginAsync(); } catch { session.Transition(SessionState.Stopping);session.Transition(SessionState.Idle);throw; }
     }
     public async Task<List<MacroAction>> StopAsync() {
         if(!session.Transition(SessionState.Stopping) || completion is null) return [];
         try { await hooks.EndAsync(); return await completion.Task; }
-        finally { session.Transition(SessionState.Idle); }
+        finally {visual?.Dispose();visual=null;session.Transition(SessionState.Idle); }
     }
     async Task Consume() {
         await foreach(var item in hooks.Events.ReadAllAsync()) {
             if(item.Message==-1) { try { completion?.TrySetResult(Assemble(raw,mode)); } catch(Exception ex) {completion?.TrySetException(ex);} raw.Clear(); }
-            else { raw.Add(item with {Target=item.Window==0?null:WindowCatalog.Describe(item.Window)}); if(raw.Count%40==0)CountChanged?.Invoke(raw.Count); }
+            else {
+                var enriched=item with {Target=item.Window==0?null:WindowCatalog.Describe(item.Window)};
+                if(visual!=null && item.Message is 0x201 or 0x204 or 0x207){try{enriched=enriched with {VisualRequested=true};enriched=enriched with {Visual=visual.Before(item,lastEdge)};if(enriched.Visual is null)VisualWarning="Some visual clicks lack fresh pre-click context and need a template before playback.";}catch(Exception ex){VisualWarning="Visual capture skipped: "+ex.Message;}}
+                if(item.Message!=0x200)lastEdge=item.Stamp;
+                raw.Add(enriched); if(raw.Count%40==0)CountChanged?.Invoke(raw.Count);
+            }
         }
     }
     public static List<MacroAction> Assemble(IReadOnlyList<CapturedInput> input,CoordinateMode mode) {
@@ -47,6 +57,9 @@ public sealed class RecordingService : IDisposable
             }
         }
         var result=new List<MacroAction>(); MacroAction? path=null; double last=0,pathStart=0; nint lastWindow=0; WindowTarget? target=null;
+        // Convert only complete, stationary click pairs. Drags and held buttons keep v1 semantics.
+        var visualClicks=new Dictionary<int,DetectionSettings>();
+        for(int i=0;i<input.Count;i++)if(input[i].VisualRequested||input[i].Visual is not null){var context=input[i].Visual??new DetectionSettings();var first=input[i];int release=first.Message+1;for(int j=i+1;j<input.Count&&input[j].Time-first.Time<600;j++){var next=input[j];if(next.Message==release){visualClicks[i]=context;remove.Add(j);break;}if(next.Message!=0x200||Math.Abs(next.X-first.X)>5||Math.Abs(next.Y-first.Y)>5)break;}}
         void Flush() { if(path!=null) { result.Add(path);last=pathStart+path.DurationMs;path=null; } }
         for(int i=0;i<input.Count;i++) {
             var r=input[i];if(remove.Contains(i))continue;
@@ -65,6 +78,7 @@ public sealed class RecordingService : IDisposable
             else if(r.Message is 0x20A or 0x20E) {a.Kind=ActionKind.Scroll;a.WheelDelta=r.Data;a.Horizontal=r.Message==0x20E;}
             else if(r.Message is 0x201 or 0x202 or 0x204 or 0x205 or 0x207 or 0x208) {a.Kind=ActionKind.MouseButton;a.Button=r.Message is 0x201 or 0x202?MouseButton.Left:r.Message is 0x204 or 0x205?MouseButton.Right:MouseButton.Middle;a.IsDown=r.Message is 0x201 or 0x204 or 0x207;}
             else continue;
+            if(visualClicks.TryGetValue(i,out var visualContext)){a.Kind=ActionKind.ImageClick;a.Detection=visualContext;if(string.IsNullOrEmpty(visualContext.Image))a.Comment="Visual context unavailable: capture a template before playback.";a.Coordinates=CoordinateMode.Desktop;a.X=r.X;a.Y=r.Y;}
             result.Add(a);last=r.Time;
         }
         Flush();return result;

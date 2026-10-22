@@ -2,7 +2,10 @@ using System.Text.Json.Serialization;
 
 namespace MacroStudio.Core;
 
-public enum ActionKind { MousePath, MouseButton, Scroll, Key, KeyChord, Text, Delay, FocusWindow }
+public enum ActionKind { MousePath, MouseButton, Scroll, Key, KeyChord, Text, Delay, FocusWindow,
+    ImageClick, WaitImage, WaitImageGone, WaitPixel, WaitRegionChange, WaitWindow,
+    Screenshot, OcrText, OcrFind, SetVariable, Calculate, Compare, ClipboardRead, ClipboardWrite, ReadText, WriteText, ReadCsv, WriteCsv,
+    Label, Jump, Branch, RepeatStart, RepeatEnd, CallMacro, AiText, AiImage }
 public enum CoordinateMode { Desktop, Window }
 public enum MouseButton { Left, Right, Middle }
 public record PathPoint(int X, int Y, double OffsetMs);
@@ -29,6 +32,12 @@ public sealed class MacroAction
     public List<int> Keys { get; set; } = [];
     public string Text { get; set; } = "";
     public string Comment { get; set; } = "";
+    public DetectionSettings Detection { get; set; } = new();
+    public DataSettings Data { get; set; } = new();
+    public Dictionary<string,string> Bindings { get; set; } = [];
+    public FlowSettings Flow {get;set;} = new();
+    public bool Breakpoint {get;set;}
+    public string Group {get;set;}="";
     [JsonIgnore] public string Description => Kind switch {
         ActionKind.MousePath => $"Move along {Path.Count} points · {DurationMs:0} ms",
         ActionKind.MouseButton => $"{Button} {(IsDown ? "down" : "up")} at {X}, {Y}",
@@ -37,7 +46,10 @@ public sealed class MacroAction
         ActionKind.KeyChord => "Chord " + string.Join(" + ", Keys.Select(k => $"0x{k:X2}")),
         ActionKind.Text => $"Type “{Text.Replace("\n", " ↵ ")}”",
         ActionKind.Delay => $"Wait {DurationMs:0} ms",
-        _ => $"Focus {Target?.Title ?? "window"}"
+        ActionKind.FocusWindow => $"Focus {Target?.Title ?? "window"}",
+        >= ActionKind.Label => $"{Kind} · {Flow.Label}{Flow.Destination}{Flow.MacroFile}",
+        >= ActionKind.Screenshot => $"{Kind} · {Data.Variable} · {Data.Value}",
+        _ => $"{Kind} · {System.IO.Path.GetFileName(Detection.Image)} · {Detection.TimeoutMs:0} ms timeout"
     };
     [JsonIgnore] public string TargetLabel => Target is null ? "Desktop" : $"{Target.ProcessName} · {Target.Title}";
 }
@@ -48,10 +60,12 @@ public sealed class PlaybackOptions
     public bool UntilStopped { get; set; }
     public bool SkipMousePaths { get; set; }
     public bool RestoreWindows { get; set; }
+    public MousePathShape PathShape {get;set;}
 }
+public enum MousePathShape { Recorded, Linear, Curved }
 public sealed class MacroDocument
 {
-    public int FormatVersion { get; set; } = 1;
+    public int FormatVersion { get; set; } = 2;
     public string Name { get; set; } = "Untitled macro";
     public List<MacroAction> Actions { get; set; } = [];
     public PlaybackOptions Playback { get; set; } = new();

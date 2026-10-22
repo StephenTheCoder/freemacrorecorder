@@ -18,7 +18,7 @@ public record Hotkey(string Command,uint Modifiers,int Key)
         return new(command,mods,vk);
     }
 }
-public sealed record CapturedInput(double Time,int Message,int X,int Y,int Data,int Vk,int Scan,bool Extended,nint Window,bool Control=false,WindowTarget? Target=null);
+public sealed record CapturedInput(double Time,int Message,int X,int Y,int Data,int Vk,int Scan,bool Extended,nint Window,bool Control=false,WindowTarget? Target=null,double Stamp=0,DetectionSettings? Visual=null,bool VisualRequested=false);
 public sealed class HookService : IDisposable
 {
     readonly Thread thread;
@@ -59,8 +59,8 @@ public sealed class HookService : IDisposable
         finally { if(mouseHook!=0) Native.UnhookWindowsHookEx(mouseHook); if(keyHook!=0) Native.UnhookWindowsHookEx(keyHook); if(foregroundHook!=0) Native.UnhookWinEvent(foregroundHook); for(int i=0;i<hotkeys.Count;i++) Native.UnregisterHotKey(0,100+i); events.Writer.TryComplete(); }
     }
     async Task OnThread(Action action) { var done=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously); commands.Enqueue(()=>{try{action();done.SetResult();}catch(Exception ex){done.SetException(ex);}}); if(!Native.PostThreadMessage(threadId,0x8001,0,0)) throw new InvalidOperationException("Input hook thread is unavailable."); await done.Task; }
-    public Task ConfigureAsync(List<Hotkey> next)=>OnThread(()=> {
-        if(next.Count!=4 || next.Select(k=>(k.Modifiers,k.Key)).Distinct().Count()!=next.Count) throw new InvalidOperationException("Each of the four controls needs a different shortcut.");
+    public Task ConfigureAsync(List<Hotkey> next,bool requireControls=true)=>OnThread(()=> {
+        if((requireControls&&next.Count<4) || next.Count<1 || next.Count>200 || next.Select(k=>(k.Modifiers,k.Key)).Distinct().Count()!=next.Count) throw new InvalidOperationException("Controls and library macros need distinct shortcuts (maximum 200 registrations).");
         var old=hotkeys.ToList(); for(int i=0;i<old.Count;i++) Native.UnregisterHotKey(0,100+i);
         int registered=0;
         try { for(;registered<next.Count;registered++) if(!Native.RegisterHotKey(0,100+registered,next[registered].Modifiers|0x4000,(uint)next[registered].Key)) throw new InvalidOperationException($"Shortcut {next[registered]} is already in use. Choose another shortcut."); hotkeys=next.ToList(); }
@@ -68,7 +68,7 @@ public sealed class HookService : IDisposable
     });
     public Task BeginAsync()=>OnThread(()=> { start=Stopwatch.GetTimestamp()*1000.0/Stopwatch.Frequency; recording=true; var h=Native.GetForegroundWindow(); if(h!=0&&!WindowCatalog.IsOurs(h)) Queue(new(0,0,0,0,0,0,0,false,h)); });
     public Task EndAsync()=>OnThread(()=> {recording=false;Queue(new(Time,-1,0,0,0,0,0,false,0));});
-    void Queue(CapturedInput item)=>events.Writer.TryWrite(item);
+    void Queue(CapturedInput item)=>events.Writer.TryWrite(item with {Stamp=VisualRecording.Timestamp});
     nint Mouse(int code,nint message,nint ptr) {
         if(code>=0 && recording) {
             var m=Marshal.PtrToStructure<Native.MouseHook>(ptr);

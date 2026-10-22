@@ -1,3 +1,5 @@
+> This file records the original 1.0 baseline. For the updated implementation and tests actually run, see [MacroStudio 2.0 verification](VERIFICATION-2.0.md).
+
 # Verification and requirement audit
 
 Environment: Windows x64, .NET SDK 10.0.402 / desktop runtime 10.0.13, 2560 × 1600 virtual desktop, 150% DPI. The app and lab compile with zero warnings/errors. The release is self-contained.

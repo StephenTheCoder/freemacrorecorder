@@ -1,12 +1,12 @@
 {
-  "release": "C:\\Users\\steph\\Documents\\Projects\\freemacrorecorder\\artifacts\\MacroStudio-1.0",
-  "release_files": 813,
-  "zip": "C:\\Users\\steph\\Documents\\Projects\\freemacrorecorder\\artifacts\\MacroStudio-1.0-win-x64.zip",
-  "zip_sha256": "973341fed3e7b6e4266ee054f3aa0f8caa0eaa1d9420d06b8931498b2aa5a20d",
+  "release": "C:\\Users\\steph\\Documents\\Projects\\freemacrorecorder\\artifacts\\MacroStudio-2.0",
+  "release_files": 826,
+  "zip": "C:\\Users\\steph\\Documents\\Projects\\freemacrorecorder\\artifacts\\MacroStudio-2.0-win-x64.zip",
+  "zip_sha256": "33828dfff25f37efc420616afe1a9ebd7d4a2a537494e933f053e23cb348d8f6",
   "source": {
-    "path": "C:\\Users\\steph\\Documents\\Projects\\freemacrorecorder\\artifacts\\MacroStudio-1.0-source.zip",
-    "files": 45,
-    "sha256": "910281f53754c4ac3a6b3e7e147cced832d26d5a7203671480239bf4c5f52631"
+    "path": "C:\\Users\\steph\\Documents\\Projects\\freemacrorecorder\\artifacts\\MacroStudio-2.0-source.zip",
+    "files": 79,
+    "sha256": "6d05b93838cd62cd0cb38e5ee2b6a647576977cb5dbf7d4259991b7a17a47fea"
   },
   "every_member_matches": true
 }

@@ -7,3 +7,7 @@ work/*.zip
 work/*.log
 work/dotnet-home/
 *.user
+work/advanced-lab*/
+work/advanced-ui/
+work/advanced-verification/
+work/advanced-native-regression/
